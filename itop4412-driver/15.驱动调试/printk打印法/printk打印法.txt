@@ -1,0 +1,14 @@
+printk打印法：
+	(1) #define DEG_PRINTK printk //添加打印
+		//#define DEG_PRINTK(x...)  //去掉打印 
+		DEG_PRINTK("%s %s %d\n", __FILE__, __FUNCTION__, __LINE__);	//能打印文件名，函数名和行数
+			
+	(2) //添加打印级别
+		printk(KERN_DEBUG"%s %s %d\n", __FILE__, __FUNCTION__, __LINE__); 
+		//cat /proc/sys/kernel/printk 的值为7 4 1 7
+		//KERN_DEBUG的打印级别为7，console_loglevel的值默认为7，所以不打印 修改如下：
+		echo "8 4 1 7" > /proc/sys/kernel/printk
+		
+	(3) 在(2)的基础上在u-boot里设置环境变量可修改内核中console_loglevel的值。
+		不打印的信息仍样可以用dmesg命令显示到串口
+

@@ -1,0 +1,11 @@
+实验2 实验3 实验4 实验5连线
+spi显示板：										4412：
+1	VDD			电源(2.8V)						19(J40)		VDD33_A31		3.3V电源
+2	GND			接地							6(con16)	GND				接地
+3	BK			背光控制(3.3V)					19(J41)		VDD33_A31		3.3V电源						
+4	RST			复位							12(J38)		DC33_EN			gpio(GPK1_0)		//先不接
+5	A0			数据(1)或者命令(0)选择			3(J41)		BUF_GPS_RXD		gpio(GPA1_5)
+6	CS			片选							4(J41)		BUF_GPS_RST		gpio(GPB_4)
+19	D6(SCL)		时钟							8(J38)		BUF_GPC1_1		gpio(GPC1(1))		//spiclk
+21	D7(SDA)		数据(输出)						7(J38)		BUF_I2C_SCL6	gpio(GPC1(4))		//mosi
+												6(J38)		BUF_I2C_SDA6	gpio(GPC1(3))		//miso

@@ -1,0 +1,67 @@
+注意：  由于讯为自带的ubuntu开发环境中的g++版本过低而
+		且交叉编译器版本中的g++也过低，所以就不破坏原
+		有的环境了，本次实验在Ubuntu17.0中做。编译器
+		工具链用arm-2014.05-29并且在ubuntu中安装最新的
+		g++编译器。
+
+1.  a.	apt-get install g++   			//先安装g++ 
+	b.	将编译器工具链源码放到/usr/local/arm下解压
+		修改环境变量vim /etc/profile 并source如下：
+		export PATH=$PATH:/usr/local/arm/arm-2014.05/bin
+		export CROSS_COMPILE=arm-none-linux-gnueabi-
+
+2. tar -vxf gdb-8.0.tar.gz
+
+3. cd gdb-8.0
+
+4. 	远程调试发现提示Remote ‘g’ packet reply is too long错误！
+	修改gdb/remote.c文件，屏蔽process_g_packet函数中的下列两行：
+	if (buf_len > 2 * rsa->sizeof_g_packet)
+	error (_(“Remote ‘g’ packet reply is too long: %s”), rs->buf);
+	在其后添加：
+	if (buf_len > 2 * rsa->sizeof_g_packet) {
+		rsa->sizeof_g_packet = buf_len ;
+		for (i = 0; i < gdbarch_num_regs (gdbarch); i++)
+		{
+			if (rsa->regs[i].pnum == -1)
+				continue;
+			if (rsa->regs[i].offset >= rsa->sizeof_g_packet)
+				rsa->regs[i].in_g_packet = 0;
+			else
+				rsa->regs[i].in_g_packet = 1;
+		}
+	}
+	
+5. ./configure --target=arm-none-linux		//调试目标为arm中的linux,编译器默认为PC机的
+
+6. 	make									//编译生成文件默认在/usr/local/bin目录下 
+
+7. cd gdb/gdbserver
+
+8. ./configure --host=arm-none-linux-gnueabi
+
+9. vi Makefile 
+
+10. 修改CC-LD变量，在后面加上-static，否则在开发板上运行时会缺少动态库文件(懒的拷贝动态库)
+
+11.	make				//编译后在当前目录下生成gdbserver文件
+
+12. 其他问题百度吧，问题种类太多了。
+
+远程调试用法：
+1. 编译调试程序：arm-none-linux-gnueabi-gcc test_debug.c -o test_debug -g -static  //-g表示生成的程序用gdb调试
+2. ARM板上：gdbserver 192.168.9.79:2345 ./test_debug			//ip是开发板的ip,端口随意
+3. PC机Ubuntu17.0虚拟机上：arm-none-linux-gdb ./test_debug
+4. target remote 192.168.9.79:2345								//远程连接
+5. 使用gdb命令来调试程序(c 执行， break 设置断点， l 显示代码， 
+						 step 单步执行会进入函数里， next 单步执行不会进入函数里
+						 q 退出调试等等)
+						 
+另一种调试方法：
+让程序在开发板上直接运行，当它发生错误时，令它产生core dump文件
+然后使用gdb根据core dump文件找到发生错误的地方。
+在ARM板上:
+1. ulimit -c unlimited
+2. ./test_debug    //执行应用程序,程序出错时会在当前目录下生成名为core的文件
+在PC上：
+3. arm-none-linux-gdb ./test_debug ./core   (gdb的bt命令可以查看函数调用关系)

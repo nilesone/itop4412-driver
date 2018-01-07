@@ -1,0 +1,3 @@
+备忘录：
+1. mdev.conf文件放到/etc目录下
+2. mmc.sh根据mdev.conf里设置的路径存放

@@ -1,0 +1,2 @@
+dma控制器设备文件：arch/arm/mach-exynos/dma.c
+dma控制器驱动文件：arch/arm/plat-samsung/s3c-pl330.c

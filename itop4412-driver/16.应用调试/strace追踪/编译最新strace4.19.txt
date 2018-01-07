@@ -1,0 +1,30 @@
+1. apt-get install autoconf git	libtool         //安装必要的软件autoconf、git和libtool
+   ln -s /usr/include/asm-generic /usr/include/asm
+   
+2. apt-get --purge remove automake				//删除旧的automake
+   tar -vxf automake-1.14.tar.gz
+   cd automake-1.14
+   ./configure									//编译安装新的automake
+   make
+   make install
+
+3. vi /root/.bashrc								//设置环境变量
+	添加export PATH=$PATH:/usr/local/share/automake-1.14
+	source /root/.bashrc
+    
+4. git clone https://github.com/strace/strace   //下载strace
+   cd strace
+   git reset --hard v4.19						//选择版本
+   
+5. ./bootstrap									//编译strace
+   ./configure --host=arm-none-linux CC=arm-none-linux-gnueabi-gcc LD=arm-none-linux-gnueabi-ld
+   make CFLAGS+="-static"
+   
+使用：
+	把strace程序放到开发板的/bin目录下
+	strace -o log.txt insmod /mnt/disk/test.ko
+
+   
+
+
+

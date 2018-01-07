@@ -1,0 +1,66 @@
+									各个目录源码说明
+1. Linux下dh11温湿度驱动文件夹的内容是DH11的驱动程序，它调用了spi接口屏驱动对外提供的函数
+得意在spi接口屏上显示温湿度内容。
+
+2. Linux下gpio模拟spi传输内容是spi接口屏的驱动程序，它对外提供了在屏幕上显示内容的接口。
+
+3. Linux下用spi控制器传输
+		去掉内核中的spi总线驱动(make menuconfig)
+			-> Device Drivers                                                                   
+				-> SPI support (SPI [=y]) 
+					-> <>Samsung S3C64XX series type SPI 
+
+4. Linux下用内核自带的spi_master
+   (1)itop4412中有3条spi总线，但是用了只用了spi2，spi2上有两个设备驱动，默认CONFIG_SPI_RC522
+      是配置上的，而CONFIG_CAN_MCP251X是不配置上的：
+	  去掉spi设备驱动
+			 CONFIG_SPI_RC522
+			 CONFIG_CAN_MCP251X
+		
+	(2)由于i2c6和spi2是引脚复用的，当上述的两个spi设备没有被配置上时i2c6总线会被用上，所以也要
+       去掉i2c6总线的驱动(在mach-itop4412.c中)：
+	   2784 #if !defined(CONFIG_CAN_MCP251X) && !defined(CONFIG_SPI_RC522)
+	   2785	 &s3c_device_i2c6,//For S5K4EC
+	   改为
+	   2784 #if !defined(CONFIG_CAN_MCP251X) && !defined(CONFIG_SPI_RC522)
+	   2785	 //&s3c_device_i2c6,//For S5K4EC
+	
+	(3)由于内核没有导出spi_register_board_info函数，所以把spi_oled_board_info.c编译进内核里面
+		修改driver/spi/Makefile	加上 obj-$(CONFIG_SPI_S3C64XX) += spi_oled_board_info.o
+		把spi_oled_board_info.c复制到driver/spi/目录中
+
+5. Linux下用自己编写的spi_master(由于原本itop4412只用到了spi2,其他的spi引脚用作其他用途，所以这里就只用spi2)
+	(1)去掉内核中的spi总线驱动(make menuconfig)
+			-> Device Drivers                                                                   
+				-> SPI support (SPI [=y]) 
+					-> <>Samsung S3C64XX series type SPI 
+					
+	(2)修改driver/spi/Makefile	加上 obj-y += spi_oled_board_info.o
+		把spi_oled_board_info.c复制到driver/spi/目录中
+	
+	(3)在rmmod spi_exynos4412之后，不重启重新加载会出错，那是因为内核在spi_unregister_master的时候
+		没有把匹配的设备去掉导致的。由于现在能力有限，实在想不出什么办法解决。就在exit函数中
+		去掉最后一个调用transfer函数的设备。不过这样做想要不重启重新加载这个模块的话就只能
+		匹配一个设备.(将spi_exynos4412编译进内核吧，这样子就没错了(不能像模块那样卸载-_-))
+				
+								注意
+1. 实验1 实验2 实验3：
+	(1)本次实验的目的是把dh11采集到的温湿数据显示在spi接口的lcd屏幕上，spi屏的驱动程序对外提供了：
+	int lcd_spi_write(unsigned int page, unsigned int col, unsigned char *data, unsigned int count);
+	而gpio模拟spi的驱动程序对外提供了：
+		void write_spi_byte(unsigned char data);
+		unsigned char read_spi_byte(void);	
+		对于读函数，因为没有对应的芯片，所以不清楚是不是正确的，不过可以大致测试一下。把6(J38)接
+		上3.3V的电压，然后读一个字节，发现为255。把6(J38)接上GND，然后读一个字节，发现为0;
+
+	(2)由于4412上的io端口的电压是1.8V的，经过电平转换变成3.3V的io口不够用(差一个)，所以在做实验时
+	我对spi显示板上的RST引脚进行手工复位，即开电源稍等片刻以后，再把RST引脚插在J40的19号引脚(
+	系统电压)上。
+	   
+2. 各个设备的连线请看对应文件的说明
+
+
+spi总线平台设备文件arch/arm/mach-exynos/dev-spi.c
+spi总线平台驱动文件driver/spi/spi_s3c64xx.c
+
+

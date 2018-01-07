@@ -1,0 +1,62 @@
+内核修改：
+1. arch/arm/kernel/calls.S	加上 CALL(sys_hello)
+
+2. include/linux/syscalls.h 加上 asmlinkage long sys_hello(const char __user *buf, size_t count);
+
+3. fs/read_write.c 			加上：
+SYSCALL_DEFINE2(hello, const char __user *, buf, size_t, count)   //SYSCALL_DEFINEx 表示参数个数
+{
+	char ker_buff[100];
+
+	copy_from_user(ker_buff, buf, (count > 100) ? 100 : count);
+	ker_buff[99] = '\0';
+
+	printk("sys_hello : %s\n", ker_buff);
+
+	return (count > 100) ? 100 : count;
+ }
+ 
+应用程序调用自制系统方法：
+方法1. ret = syscall(376, "Hello,I am main!", 17);
+
+方法2. 用c嵌入汇编的方法，详细见sys_call.c文件
+
+
+不修改应用程序源代码打印相关信息：
+内核修改：
+1. include/linux/syscalls.h 原先我们添加的函数申明改为：asmlinkage long sys_hello(void);
+
+2. fs/read_write.c 	原先我们添加的函数改为：
+SYSCALL_DEFINE0(hello)
+{
+	int value;
+	struct pt_regs *regs;
+	
+	regs = task_pt_regs(current);
+	/* 1. 输出一些调试信息 */
+	/* 应用程序test_debug的反汇编里：			  000107c4 <cnt>: */
+	copy_from_user(&value, (const void __user *)0x000107c4, 4);
+	printk("sys_hello: cnt = %d\n", value);
+
+	/* 2. 执行被替换的命令 ①add	r3, r3, #2; ②str	r3, [fp, #-8]*/
+	regs->ARM_r3 +=2;													//恢复后和add	r3, r3, #2结果一样
+	copy_to_user((void __user *)(regs->ARM_fp - 8), &regs->ARM_r3, 4);  //恢复后和str	r3, [fp, #-8]结果一样
+	
+	/* 3. 打印局部变量i */
+	copy_from_user(&value, (void __user *)(regs->ARM_fp - 8), 4);
+	printk("sys_hello: i = %d\n", value);
+	
+	return 0;
+}
+
+test_debug二进制文件修改：
+1. 由于此软中断的指令为svc，而不是swi(这两条机器码可以从sys_call的反汇编中获取)。所以只能替换两条指令
+e3a07f5e	mov r7, #376				//r7存的是调用号	
+ef000000	svc 0x00000000				//svc指令本身不带有调用号
+
+2. 在test_debug反汇编文件中找到给i加2的指令和把加2后的值写回内存的指令
+84a8:	e51b3008 	ldr	r3, [fp, #-8]		//读出i的值
+84ac:	e2833002 	add	r3, r3, #2			//i的值加2(在test_debug二进制文件中替换为e3a07f5e)
+84b0:	e50b3008 	str	r3, [fp, #-8]		//写回内存(在test_debug二进制文件中替换为ef000000)
+
+3. 在自制系统调用的函数里执行具有相同结果的语句。
